@@ -59,6 +59,7 @@ use libc::c_int;
 use self::PingError::{
     LibOpingError,
     NulByteError,
+    CustomError,
 };
 
 /// Address family (IPv4 or IPv6) used to send/receive a ping.
@@ -127,6 +128,8 @@ pub enum PingError {
     LibOpingError(String),
     /// A `std::ffi::NulError` that occurred while trying to convert a hostname string
     NulByteError(NulError),
+    /// An error with a custom error message
+    CustomError(String),
 }
 
 impl fmt::Display for PingError {
@@ -134,6 +137,7 @@ impl fmt::Display for PingError {
         match *self {
             LibOpingError(ref err) => write!(f, "oping::PingError::LibOpingError: {}", err),
             NulByteError(ref err) => write!(f, "oping::PingError::NulByteError: {}", err),
+            CustomError(ref err) => write!(f, "{}", err),
         }
     }
 }
@@ -143,6 +147,7 @@ impl error::Error for PingError {
         match *self {
             LibOpingError(_) => "a liboping internal error was encountered",
             NulByteError(ref e) => e.description(),
+            CustomError(ref e) => &e,
         }
     }
 

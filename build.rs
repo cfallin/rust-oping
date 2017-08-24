@@ -14,7 +14,7 @@ fn main() {
         .status()
         .unwrap();
 
-    gcc::Config::new()
+    gcc::Build::new()
         .define("HAVE_CONFIG_H", None)
         .file("liboping/src/liboping.c")
         .include("liboping/src/")
