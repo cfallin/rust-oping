@@ -45,21 +45,18 @@
 //! }
 //! ```
 
-use std::mem::transmute;
-use std::os::raw::c_char;
-use std::ffi::{CStr, CString, NulError};
 use std::default::Default;
 use std::error;
+use std::ffi::{CStr, CString, NulError};
 use std::fmt;
+use std::mem::transmute;
+use std::os::raw::c_char;
 
 extern crate libc;
-use libc::{AF_INET, AF_INET6};
 use libc::c_int;
+use libc::{AF_INET, AF_INET6};
 
-use self::PingError::{
-    LibOpingError,
-    NulByteError,
-};
+use self::PingError::{LibOpingError, NulByteError};
 
 /// Address family (IPv4 or IPv6) used to send/receive a ping.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -112,11 +109,12 @@ extern "C" {
     fn ping_host_remove(obj: *mut PingObj, host: *const c_char) -> i32;
     fn ping_iterator_get(obj: *mut PingObj) -> *mut PingObjIter;
     fn ping_iterator_next(obj: *mut PingObjIter) -> *mut PingObjIter;
-    fn ping_iterator_get_info(iter: *mut PingObjIter,
-                              info: PingIterInfo,
-                              buf: *mut u8,
-                              size: *mut usize)
-                              -> i32;
+    fn ping_iterator_get_info(
+        iter: *mut PingObjIter,
+        info: PingIterInfo,
+        buf: *mut u8,
+        size: *mut usize,
+    ) -> i32;
     fn ping_get_error(obj: *mut PingObj) -> *const c_char;
 }
 
@@ -139,14 +137,7 @@ impl fmt::Display for PingError {
 }
 
 impl error::Error for PingError {
-    fn description(&self) -> &str {
-        match *self {
-            LibOpingError(_) => "a liboping internal error was encountered",
-            NulByteError(ref e) => e.description(),
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             NulByteError(ref err) => Some(err),
             _ => None,
@@ -172,15 +163,14 @@ impl Drop for Ping {
 }
 
 macro_rules! try_c {
-    ($obj: expr, $e: expr) => (
+    ($obj: expr, $e: expr) => {
         if $e != 0 {
             let err = CStr::from_ptr(ping_get_error($obj));
             let s = String::from(err.to_str().unwrap());
             return Err(LibOpingError(s));
         }
-    )
+    };
 }
-
 
 impl Ping {
     /// Create a new `Ping` context.
@@ -194,8 +184,10 @@ impl Ping {
     /// all listed destinations.
     pub fn set_timeout(&mut self, timeout: f64) -> PingResult<()> {
         unsafe {
-            try_c!(self.obj,
-                   ping_setopt(self.obj, PingOption::TIMEOUT, transmute(&timeout)));
+            try_c!(
+                self.obj,
+                ping_setopt(self.obj, PingOption::TIMEOUT, transmute(&timeout))
+            );
         }
         Ok(())
     }
@@ -204,8 +196,10 @@ impl Ping {
     /// is sent with a TTL that is too low for the route, it may be dropped.
     pub fn set_ttl(&mut self, ttl: i32) -> PingResult<()> {
         unsafe {
-            try_c!(self.obj,
-                   ping_setopt(self.obj, PingOption::TTL, transmute(&ttl)));
+            try_c!(
+                self.obj,
+                ping_setopt(self.obj, PingOption::TTL, transmute(&ttl))
+            );
         }
         Ok(())
     }
@@ -217,8 +211,10 @@ impl Ping {
             AddrFamily::IPV6 => AF_INET6,
         };
         unsafe {
-            try_c!(self.obj,
-                   ping_setopt(self.obj, PingOption::AF, transmute(&fam)));
+            try_c!(
+                self.obj,
+                ping_setopt(self.obj, PingOption::AF, transmute(&fam))
+            );
         }
         Ok(())
     }
@@ -230,8 +226,10 @@ impl Ping {
             Err(e) => return Err(NulByteError(e)),
         };
         unsafe {
-            try_c!(self.obj,
-                   ping_setopt(self.obj, PingOption::DEVICE, cstr.as_ptr() as *mut u8));
+            try_c!(
+                self.obj,
+                ping_setopt(self.obj, PingOption::DEVICE, cstr.as_ptr() as *mut u8)
+            );
         }
         Ok(())
     }
@@ -240,8 +238,10 @@ impl Ping {
     /// ping packets.
     pub fn set_qos(&mut self, qos: u8) -> PingResult<()> {
         unsafe {
-            try_c!(self.obj,
-                   ping_setopt(self.obj, PingOption::QOS, transmute(&qos)));
+            try_c!(
+                self.obj,
+                ping_setopt(self.obj, PingOption::QOS, transmute(&qos))
+            );
         }
         Ok(())
     }
@@ -287,7 +287,7 @@ impl Ping {
         unsafe {
             let result = ping_send(self.obj);
             if result < 0 {
-                try_c!(self.obj, result);  // should return error.
+                try_c!(self.obj, result); // should return error.
                 unreachable!()
             } else {
                 Ok(self.iter())
@@ -335,20 +335,23 @@ pub struct PingItem {
 }
 
 macro_rules! get_str_field {
-    ($iter: expr, $field: expr, $vec: expr) => (
+    ($iter: expr, $field: expr, $vec: expr) => {
         unsafe {
             let ptr = $vec.as_mut_ptr();
             let mut size: usize = $vec.capacity();
             if ping_iterator_get_info($iter, $field, ptr, &mut size as *mut usize) != 0 {
                 return None;
             }
-            CStr::from_ptr(ptr as *const _).to_str().unwrap().to_string()
+            CStr::from_ptr(ptr as *const _)
+                .to_str()
+                .unwrap()
+                .to_string()
         }
-    )
+    };
 }
 
 macro_rules! get_num_field {
-    ($iter: expr, $field: expr, $vec: expr,$t: ty) => (
+    ($iter: expr, $field: expr, $vec: expr,$t: ty) => {
         unsafe {
             let ptr = $vec.as_mut_ptr();
             let mut size: usize = $vec.capacity();
@@ -358,7 +361,7 @@ macro_rules! get_num_field {
             let cast_ptr: *const $t = transmute(ptr);
             *cast_ptr
         }
-    )
+    };
 }
 
 impl Iterator for PingIter {

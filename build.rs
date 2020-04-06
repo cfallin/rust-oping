@@ -1,6 +1,6 @@
 use std::process::Command;
 
-extern crate gcc;
+extern crate cc;
 
 fn main() {
     Command::new("sh")
@@ -14,7 +14,7 @@ fn main() {
         .status()
         .unwrap();
 
-    gcc::Config::new()
+    cc::Build::new()
         .define("HAVE_CONFIG_H", None)
         .file("liboping/src/liboping.c")
         .include("liboping/src/")
