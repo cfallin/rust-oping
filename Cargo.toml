@@ -1,7 +1,7 @@
 [package]
 name = "oping"
 description = "Rust bindings for liboping, a simple ICMP ping library"
-version = "0.3.3"
+version = "0.3.4"
 authors = ["Chris Fallin <cfallin@c1f.net>"]
 repository = "https://github.com/cfallin/rust-oping"
 documentation = "https://cfallin.github.io/rust-oping/oping/"
